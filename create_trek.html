@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Trek</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+<style>
+    body {
+    background-image: url("back.png");
+    background-size: cover;       
+    background-position: center;
+    background-repeat: no-repeat; 
+    margin: 0;
+    }
+</style>
+</head>
+
+<body>
+    <div class="row justify-content-center">
+    <div class="col-md-6">
+    <div class="card p-4">
+    
+            <div id="form-body">
+                <h2>Add new Trek</h2>
+                <div class="mb-3">
+                <label for="Input1" class="form-label">Trek Name</label>
+                <input type="text" class="form-control" name="trek_name" id="Input1" placeholder="Enter Trek Name">
+                </div>
+                <div class="mb-3">
+                <label for="Input2" class="form-label">Location</label>
+                <input type="text" class="form-control" id="Input2" name=trek_location placeholder="Enter Location of Trek">
+                </div>
+                <p>Choose Trek Difficulty</p>
+                <select class="form-select" aria-label="Trek Difficulty" name="Difficulty">
+                    <option selected>Trek Difficulty</option>
+                    <option value="easy">Easy</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="hard">Hard</option>
+                    </select>
+                    <br>
+
+                <div class="mb-3">
+                <label for="Input3" class="form-label">Duration(in Days)</label>
+                <input type="number" class="form-control" id="Input3" placeholder="Enter Duration of Trek" name="duration">
+                </div>
+                <div class="mb-3">
+                <label for="Input3" class="form-label">number of slots</label>
+                <input type="number" class="form-control" id="Input3" placeholder="Enter No of slots" name="number_slots">
+                </div>
+                
+
+
+                <div class="text-center">
+                    <input type="submit" class="btn btn-primary" value="Create">
+                    
+                    
+                </div>
+
+            </div>
+        </div>
+        </div>
+    </div>
+</body>
+</html>
