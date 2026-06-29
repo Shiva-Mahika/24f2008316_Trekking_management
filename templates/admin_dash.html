@@ -3,19 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home Page</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <title>Admin dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+<style>
+    body{
+        padding: 5px;
+    }
+</style>
 
 </head>
 <body>
-   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+   <nav class="navbar navbar-expand-lg navbar-dark bg-success">
         <div class="container"> 
             <a class ="navbar-brand fw-bold" href="{{url_for("index")}}">TrekTrails</a>
             <div class="ms-auto">
-               
+               <a href="{{ url_for("create_trek")}}" class="btn btn-info">Create trek</a>
                <a href="{{ url_for("logout")}}" class="btn btn-danger">Signout</a>
             </div>
         </div>
     </nav>
+    <br>
+    
+    <h2>Welcome Admin</h2>
+    <!-- stats -->
+<div class="row g-3 mt-2" >
+    <div class="col-md-3">
+        <div class="card text-bg-primary p-3">
+    <h6>Total Treks</h6>
+    <h2>{{total_trek}}</h2>
+</div>
+
+</div>
+    <div class="col-md-3">
+        <div class="card text-bg-success p-3">
+    <h6> Total staff</h6>
+    <h2>{{total_staff}}</h2>
+</div>
+</div>
+    <div class="col-md-3">
+        <div class="card text-bg-warning p-3">
+    <h6>Total Booking</h6>
+    <h2>{{total_booking}}</h2>
+</div>
+</div>
+    <div class="col-md-3">
+        <div class="card text-bg-danger p-3">
+    <h6>Customers</h6>
+    <h2>{{total_customer}}</h2>
+    </div>
+</div>
+</div>
+<br>
+<br>
+<!-- pending request of staff -->
+<h4 class="section-title">Pending requests for Staff</h4>
+<div class="table-responsive">
+    <table class="table table-bordered bg-light">
+        <thead><tr>
+            <th>Staff Name</th>
+            <th>Email</th>
+            <th>ph number</th>
+            <th>Action</th>
+            
+        </tr></thead>
+        <tbody>
+            {% for c in pending_req %}
+            <tr>
+                <td>{{c.user.name}}</td>
+                <td>{{c.user.email}}</td>
+                <td>{{c.user.ph_number}}</td>
+                <td>
+                    <form method="POST" action="{{url_for('approve_staff',staff_id=c.id)}}" class="d-inline">
+                        <button class="btn btn-success">Approve</button>
+                    </form>
+                    <form method="POST" action="{{url_for('reject_staff',staff_id=c.id)}}" class="d-inline">
+                        <button class="btn btn-danger">Reject</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+    <td colspan="4">No pending approvals</td>
+</tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<br>
+<br>
+<h4 class="section-title">Search</h4>
+<form methods="GET" class="d-flex mb-3" style="max-width:400px;">
+    <input type="text" name="q" class="form-control me-2" placeholder="Search by name" value="{{search_query}}">
+    <button class="btn btn-info">Search</button>
+</form>
+{% if search_query %}
+<p class="text-muted">Results for "{{ search_query }}"</p>
+<div class="table-responsive">
+    <table class="table table-bordered bg-light">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in search_results_staff %}
+                <tr>
+                    <td>Staff</td>
+                    <td>{{ s.name }}</td>
+                    <td>{{ s.email }}</td>
+                </tr>
+                {% endfor %}
+                {% for c in search_results_customer %}
+                <tr>
+                    <td>Customers</td>
+                    <td>{{ c.name }}</td>
+                    <td>{{ c.email }}</td>
+                </tr>
+                {% endfor %}
+                {% if not search_results_staff and not search_results_customer %}
+                <tr>
+                    <td colspan="3">No searches found</td>
+                </tr>
+                {% endif %}
+            </tbody>
+    </table>
+    </div>
+{% endif %}
+<br>
+<br>
+<h4 class="section-title">All Treks</h4>
+<div class="table-responsive">
+    <table class="table table-bordered bg-light">
+        <thead>
+            <tr>
+                <th>Trek Name</th>
+                <th>Trek Location</th>
+                <th>Difficulty</th>
+                <th>Number of slots</th>
+                <th>Staff Assigned</th>
+                <th>Action</th> 
+                <th>Assign Staff</th>     
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in all_trek %}
+            <tr>
+                <td>{{s.trek_name}}</td>
+                <td>{{s.trek_location}}</td>
+                <td>{{s.difficulty}}</td>
+                <td>{{s.number_slots}}</td>
+                <td>{{s.staff}}</td>
+                <td>
+                    <a href="{{ url_for('update_trek', trek_id=s.id) }}" class="btn btn-warning">
+    Update
+</a>
+                </td>
+                <td>
+                <form methods="POST" action="{{ url_for('assign_staff', trek_id=s.id) }}">
+    <select name="staff_id" class="form-select">
+        {% for staff in available_staff %}
+            <option value="{{ staff.user.name if staff.user else "No User" }}">
+                {{ staff.user.name }}
+            </option>
+        {% endfor %}
+    </select>
+
+<button type="submit" class="btn btn-success">Assign</button>
+</form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+</table>
+</div>
+<br>
+<br>
+<!-- all Customers -->
+<h4 class="section-title">All Customers</h4>
+<div class="table-responsive">
+    <table class="table table-bordered bg-light">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in all_customers %}
+            <tr>
+                <td>{{s.name}}</td>
+                <td>{{s.email}}</td>
+                <td>
+                    <form method="POST" action="{{url_for("blacklist",customer_id=s.id)}}">
+                        <button class="btn btn-sm {{'btn-outline-success' if s.is_blacklisted else 'btn-outline-danger'}}">
+                            {{'Reinstate' if s.is_blacklisted else 'Blacklist'}}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+    <td colspan="3">No Customers</td>
+</tr>
+            {% endfor %}
+        </tbody>
+</table>
+</div>
+<br>
+<br>
+<!-- all staff -->
+<h4 class="section-title">All Staff</h4>
+<div class="table-responsive">
+    <table class="table table-bordered bg-light">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in all_staff %}
+            <tr>
+                <td>{{s.name}}</td>
+                <td>{{s.email}}</td>
+                <td>
+                    <form method="POST" action="{{url_for("blacklisted",staff_id=s.id)}}">
+                        <button class="btn btn-sm {{'btn-outline-success' if s.is_blacklisted else 'btn-outline-danger'}}">
+                            {{'Reinstate' if s.is_blacklisted else 'Blacklist'}}
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+    <td colspan="3">No Staff</td>
+</tr>
+            {% endfor %}
+        </tbody>
+</table>
+</div>
+<br>
+<br>
+<!-- All Bookings -->
+<h4 class="section-title mt-4">All Bookings</h4>
+
+<div class="table-responsive">
+    <table class="table table-bordered bg-light">
+        <thead>
+            <tr>
+                <th>Customer Name</th>
+                <th>Customer Email</th>
+                <th>Trek Name</th>
+                <th>Payment Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for b in all_bookings %}
+            <tr>
+                <td>{{ b.user.name }}</td>
+                <td>{{ b.user.email }}</td>
+                <td>{{ b.trek.trek_name }}</td>
+                <td>
+                    {% if b.payment_status %}
+                        <span class="badge bg-success">Paid</span>
+                    {% else %}
+                        <span class="badge bg-danger">Unpaid</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">No Bookings</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 </body>
 </html>
