@@ -92,7 +92,7 @@
 <br>
 <br>
 <h4 class="section-title">Search</h4>
-<form methods="GET" class="d-flex mb-3" style="max-width:400px;">
+<form method="GET" class="d-flex mb-3" style="max-width:400px;">
     <input type="text" name="q" class="form-control me-2" placeholder="Search by name" value="{{search_query}}">
     <button class="btn btn-info">Search</button>
 </form>
@@ -154,23 +154,29 @@
                 <td>{{s.trek_location}}</td>
                 <td>{{s.difficulty}}</td>
                 <td>{{s.number_slots}}</td>
-                <td>{{s.staff}}</td>
                 <td>
-                    <a href="{{ url_for('update_trek', trek_id=s.id) }}" class="btn btn-warning">
-    Update
-</a>
+                    {% if s.staff %}
+                        {{ s.staff.user.name }}
+                    {% else %}
+                        Not Assigned
+                    {% endif %}
                 </td>
                 <td>
-                <form methods="POST" action="{{ url_for('assign_staff', trek_id=s.id) }}">
-    <select name="staff_id" class="form-select">
-        {% for staff in available_staff %}
-            <option value="{{ staff.user.name if staff.user else "No User" }}">
-                {{ staff.user.name }}
-            </option>
-        {% endfor %}
-    </select>
+                    <a href="{{ url_for('update_trek', trek_id=s.id) }}" class="btn btn-warning">Update</a>
+                </td>
+                <td>
+                    
+                <form method="POST" action="{{ url_for('assign_staff', trek_id=s.id) }}">
+                    <select name="staff_id" class="form-select">
+                    {% for staff in available_staff %}
+                        <option value="{{ staff.id }}">
+                            {{ staff.user.name }}
+                        </option>
+                    {% endfor %}
+                    </select>
+        
 
-<button type="submit" class="btn btn-success">Assign</button>
+<button type="submit" class="btn btn-success" >Assign</button>
 </form>
                 </td>
             </tr>
@@ -192,7 +198,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for s in all_customers %}
+            {% for s in all_customer %}
             <tr>
                 <td>{{s.name}}</td>
                 <td>{{s.email}}</td>
@@ -227,22 +233,18 @@
         </thead>
         <tbody>
             {% for s in all_staff %}
-            <tr>
-                <td>{{s.name}}</td>
-                <td>{{s.email}}</td>
-                <td>
-                    <form method="POST" action="{{url_for("blacklisted",staff_id=s.id)}}">
-                        <button class="btn btn-sm {{'btn-outline-success' if s.is_blacklisted else 'btn-outline-danger'}}">
-                            {{'Reinstate' if s.is_blacklisted else 'Blacklist'}}
-                        </button>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-    <td colspan="3">No Staff</td>
+<tr>
+    <td>{{ s.user.name }}</td>
+    <td>{{ s.user.email }}</td>
+    <td>
+        <form method="POST" action="{{ url_for('blacklisted', staff_id=s.id) }}">
+            <button class="btn btn-sm {{ 'btn-outline-success' if s.user.is_blacklisted else 'btn-outline-danger' }}">
+                {{ 'Reinstate' if s.user.is_blacklisted else 'Blacklist' }}
+            </button>
+        </form>
+    </td>
 </tr>
-            {% endfor %}
+{% endfor %}
         </tbody>
 </table>
 </div>
@@ -259,11 +261,12 @@
                 <th>Customer Email</th>
                 <th>Trek Name</th>
                 <th>Payment Status</th>
+                <th>Status</th>
             </tr>
         </thead>
 
         <tbody>
-            {% for b in all_bookings %}
+            {% for b in all_booking %}
             <tr>
                 <td>{{ b.user.name }}</td>
                 <td>{{ b.user.email }}</td>
@@ -275,6 +278,7 @@
                         <span class="badge bg-danger">Unpaid</span>
                     {% endif %}
                 </td>
+                <td>{{b.status}}</td>
             </tr>
             {% else %}
             <tr>

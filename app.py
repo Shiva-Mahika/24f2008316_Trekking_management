@@ -1,4 +1,5 @@
-from flask import Flask,render_template,request,redirect,session,url_for
+
+from flask import Flask,render_template,request,redirect,session,url_for,send_from_directory,flash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_
 from datetime import datetime,timedelta
@@ -32,19 +33,19 @@ class Trek(db.Model):
     difficulty=db.Column(db.String(10))
     duration=db.Column(db.Integer,nullable=False)
     number_slots=db.Column(db.Integer,nullable=False)
-    staff_id = db.Column(
-        db.Integer,
-        db.ForeignKey('staff.id')
-    )
+    open_trek=db.Column(db.Boolean,default=True)
+    
+    staff_id = db.Column(db.Integer,db.ForeignKey('staff.id'))
     bookings = db.relationship('Booking', backref='trek', lazy=True,cascade="all,delete-orphan")
     
 class Booking(db.Model):
     id=db.Column(db.Integer,primary_key=True)
     user_id=db.Column(db.Integer,db.ForeignKey('user.id'),nullable=False)
     trek_id=db.Column(db.Integer,db.ForeignKey('trek.id'),nullable=False)
-    status=db.Column(db.String(80),nullable=False,default='pending')
     payment_status=db.Column(db.Boolean,nullable=False,default=False)
     booked_at=db.Column(db.DateTime,default=datetime.now)
+    
+    status = db.Column(db.String(20), default="Booked", nullable=False)
 class Staff(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
@@ -88,6 +89,98 @@ def login():
             return redirect(url_for('customer_dashboard'))
         
     return render_template("login.html")
+
+def logged_in():
+    if 'user_id' in session:
+        return User.query.get(session["user_id"])
+    return None
+
+@app.route("/customer_dashboard")
+def customer_dashboard():
+
+    customer = logged_in()
+
+    query = Trek.query.filter_by(open_trek=True)
+
+    search = request.args.get("search", "").strip()
+
+    if search:
+        query = query.filter(
+            db.or_(
+                Trek.trek_name.ilike(f"%{search}%"),
+                Trek.trek_location.ilike(f"%{search}%")
+            )
+        )
+
+    open_trek = query.all()
+
+    booking_history = Booking.query.filter_by(
+        user_id=customer.id
+    ).order_by(
+        Booking.booked_at.desc()
+    ).all()
+
+    return render_template(
+        "customer_dash.html",
+        customer=customer,
+        open_trek=open_trek,
+        booking_history=booking_history,
+        search=search
+    )
+
+
+
+@app.route("/book_trek/<int:trek_id>", methods=["POST"])
+def book_trek(trek_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user = User.query.get_or_404(session["user_id"])
+    trek = Trek.query.get_or_404(trek_id)
+
+    # Check if trek is open
+    if not trek.open_trek:
+        flash("This trek is no longer open for booking.", "danger")
+        return redirect(url_for("customer_dashboard"))
+
+    # Check available slots
+    if trek.number_slots <= 0:
+        trek.open_trek = False
+        db.session.commit()
+        flash("No slots available.", "danger")
+        return redirect(url_for("customer_dashboard"))
+
+    # Prevent duplicate booking
+    existing_booking = Booking.query.filter_by(
+        user_id=user.id,
+        trek_id=trek.id
+    ).first()
+
+    if existing_booking:
+        flash("You have already booked this trek.", "warning")
+        return redirect(url_for("customer_dashboard"))
+
+    booking = Booking(
+        user_id=user.id,
+        trek_id=trek.id
+    )
+
+    db.session.add(booking)
+
+    # Reduce slots
+    trek.number_slots -= 1
+
+    # Close trek if no slots remain
+    if trek.number_slots == 0:
+        trek.open = False
+
+    db.session.commit()
+
+    return redirect(url_for("customer_dashboard"))
+
+
+
+
 @app.route("/admin_dashboard",methods=['GET','POST'])
 def admin_dashboard():
     if session.get('role')!="admin":
@@ -98,12 +191,16 @@ def admin_dashboard():
     total_trek=Trek.query.count()
 
     pending_req = Staff.query.filter_by(approval='pending').all()
-    all_staff=User.query.filter_by(role="staff").all()
+    all_staff = Staff.query.all()
     all_customer=User.query.filter_by(role="customer").all()
     all_booking=Booking.query.all()
     all_trek=Trek.query.all()
-    assigned_staff_ids = [x[0] for x in db.session.query(Trek.staff_id).all()]
-    available_staff = Staff.query.filter(~Staff.id.in_(assigned_staff_ids)).all()
+    assigned_staff_ids = (
+    db.session.query(Trek.staff_id).filter(Trek.staff_id != None).all())
+    assigned_staff_ids = [x[0] for x in assigned_staff_ids]
+
+    available_staff = Staff.query.filter(Staff.approval == "approved",~Staff.id.in_(assigned_staff_ids)).all()
+
     search_query=request.args.get('q','').strip()
     
     search_results_customer=[]
@@ -136,13 +233,16 @@ def admin_dashboard():
                            assigned_staff_ids=assigned_staff_ids
                            )
 
+
+
 @app.route('/assign_staff/<int:trek_id>', methods=['POST'])
 def assign_staff(trek_id):
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
 
     staff_id = request.form.get('staff_id')
-    trek = Trek.query.get(session['trek_id'])
+
+    trek = Trek.query.get_or_404(trek_id)
     trek.staff_id = int(staff_id)
 
     db.session.commit()
@@ -172,6 +272,8 @@ def reject_staff(staff_id):
 @app.route('/create_trek',methods=['GET','POST'])
 def create_trek():
     if request.method=="POST":
+        if session.get("role") != "admin":
+            return redirect(url_for("index"))
         name=request.form.get('trek_name'," ").strip()
         location=request.form.get("trek_location").strip()
         difficulty=request.form.get("difficulty")
@@ -195,15 +297,13 @@ def logout():
 def staff_dashboard():
     return render_template('staff_dash.html')
 
-@app.route('/')
 
 
-@app.route("/customer_dashboard",methods=['GET','POST'])
-def customer_dashboard():
-    return render_template('customer_dash.html')
 
 
-@app.route("customer_dash/update_profile", methods=["GET", "POST"])
+
+
+@app.route("/update_profile", methods=["GET", "POST"])
 def update_profile():
     if "user_id" not in session:
         return redirect(url_for("login"))
@@ -211,26 +311,34 @@ def update_profile():
     user = User.query.get_or_404(session["user_id"])
 
     if request.method == "POST":
-        name = request.form.get("name").strip()
-        email = request.form.get("email").strip()
-        ph_number = request.form.get("ph_number").strip()
-        password = request.form.get("password")
 
-        
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        ph_number = request.form.get("number", "").strip()
+        password = request.form.get("password", "").strip()
+
+        if name:
+            user.name = name
+
+        if email:
+            user.email = email
+
+        if ph_number:
+            user.ph_number = ph_number
+
         if password:
             user.set_password(password)
 
         db.session.commit()
 
-        return redirect(url_for('customer_dash.html'))
+        return redirect(url_for("customer_dashboard"))
 
     return render_template("update_profile.html", user=user)
 
 
-
     
 
-@app.route('/update_trek/<int:trek_id>', methods=['GET', 'POST'])
+@app.route('/admin/update_trek/<int:trek_id>', methods=['GET', 'POST'])
 def update_trek(trek_id):
     if session.get('role') != 'admin':
         return redirect(url_for('index'))
@@ -249,25 +357,29 @@ def update_trek(trek_id):
         return redirect(url_for('admin_dashboard'))
 
     return render_template('update_trek.html', trek=trek)
- 
-@app.route('/admin/blacklisted/<int:staff_id>',methods=['GET','POST'])
+
+@app.route('/admin/blacklisted/<int:staff_id>', methods=['POST'])
 def blacklisted(staff_id):
-    if session.get('role')!='admin':
+    if session.get('role') != 'admin':
         return redirect(url_for('index'))
-    staff=Staff.query.get_or_404(staff_id)
-    staff.is_blacklisted=not staff.is_blacklisted
+
+    staff = Staff.query.get_or_404(staff_id)
+    staff.user.is_blacklisted = not staff.user.is_blacklisted
 
     db.session.commit()
+
     return redirect(url_for('admin_dashboard'))
 
-@app.route('/admin/blacklist/<int:customer_id>',methods=['GET','POST'])
+@app.route('/admin/blacklist/<int:customer_id>', methods=['POST'])
 def blacklist(customer_id):
-    if session.get('role')!='admin':
+    if session.get('role') != 'admin':
         return redirect(url_for('index'))
-    customer=User.query.get_or_404(customer_id)
-    customer.is_blacklisted=not customer.is_blacklisted
+
+    customer = User.query.get_or_404(customer_id)
+    customer.is_blacklisted = not customer.is_blacklisted
 
     db.session.commit()
+
     return redirect(url_for('admin_dashboard'))
 
 
@@ -279,7 +391,7 @@ def register():
         name = request.form.get('name', '').strip()
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
-        ph_number = request.form.get('number')
+        ph_number = request.form.get('ph_number')
 
         if not name or not email or not password or role not in ('staff', 'customer'):
             return render_template(

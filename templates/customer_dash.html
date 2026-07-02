@@ -18,5 +18,71 @@
             </div>
         </div>
     </nav>
+    <b><h2 class="heading"> Welcome {{customer.name}}</h2></b>
+    <br>
+    <br>
+    <form method="GET" class="mb-3">
+    <div class="input-group">
+        <input
+            type="text"
+            name="search"
+            class="form-control"
+            placeholder="Search by trek name or location"
+            value="{{ search }}">
+        <button class="btn btn-primary" type="submit">
+            Search
+        </button>
+    </div>
+</form>
+
+    <h4 class="section-title">All Trek</h4>
+<div class="row">
+    {% for d in open_trek %}
+    <div class="col-md-3">
+        <div class="card p-3 h-100">
+            <h5>{{d.trek_name}}</h5>
+            <b><p class="text-muted mb-1">{{d.trek_location}}</p></b>
+            <p class="text-muted mb-1">{{d.difficulty}}</p>
+            <p class="text-muted mb-1">{{d.duration}}</p>
+            <br>
+            
+            <form method="POST" action="{{url_for("book_trek",trek_id=d.id)}}">
+                <button class="btn btn-primary" type="submit" > Book now</button>
+            </form>
+        </div>
+    </div>
+{%else%}
+<p class="text-muted">No open treks</p>
+{% endfor %}
+</div>
+<br>
+<br>
+<h4 class="section-title mt-4">Booking History</h4>
+
+<div class="table-responsive">
+    <table class="table table-bordered bg-light">
+        <thead>
+            <tr>
+                <th>Trek Name</th>
+                <th>Booked On</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for b in booking_history %}
+            <tr>
+                <td>{{ b.trek.trek_name }}</td>
+                <td>{{ b.booked_at.strftime("%d-%m-%Y") }}</td>
+                <td>{{b.status}}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="2" class="text-center">No bookings found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 </body>
 </html>
