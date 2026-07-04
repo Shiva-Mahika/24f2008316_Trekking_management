@@ -34,7 +34,7 @@ class Trek(db.Model):
     duration=db.Column(db.Integer,nullable=False)
     number_slots=db.Column(db.Integer,nullable=False)
     open_trek=db.Column(db.Boolean,default=True)
-    
+    status=db.Column(db.String(10),default="Upcoming")
     staff_id = db.Column(db.Integer,db.ForeignKey('staff.id'))
     bookings = db.relationship('Booking', backref='trek', lazy=True,cascade="all,delete-orphan")
     
@@ -81,6 +81,7 @@ def login():
         session['user_id']=user.id
         session['role']=user.role
         session['name']=user.name
+    
         if user.role=='admin':
             return redirect(url_for('admin_dashboard'))
         elif user.role=='staff':
@@ -97,6 +98,8 @@ def logged_in():
 
 @app.route("/customer_dashboard")
 def customer_dashboard():
+    if session.get("role") != "customer":
+        return redirect(url_for("index"))
 
     customer = logged_in()
 
@@ -172,7 +175,7 @@ def book_trek(trek_id):
 
     # Close trek if no slots remain
     if trek.number_slots == 0:
-        trek.open = False
+        trek.open_trek = False
 
     db.session.commit()
 
@@ -221,7 +224,6 @@ def admin_dashboard():
                            total_customer=total_customer,
                            total_trek=total_trek,
                            total_booking=total_booking,
-
                            pending_req=pending_req,
                            all_customer=all_customer,
                            all_staff=all_staff,
@@ -293,12 +295,121 @@ def logout():
     session.clear()
     return redirect(url_for('index'))
 
-@app.route("/staff_dashboard",methods=['GET','POST'])
+@app.route("/staff_dashboard", methods=["GET", "POST"])
 def staff_dashboard():
-    return render_template('staff_dash.html')
+    if session.get("role") != "staff":
+        return render_template("index.html")
+
+    user = logged_in()
+    staff = Staff.query.filter_by(user_id=user.id).first()
+    my_assigned_trek = Trek.query.filter_by(staff_id=staff.id).first()
+    total_booking = Booking.query.filter_by(trek_id=my_assigned_trek.id).count()
+    return render_template(
+        "staff_dash.html",
+        staff=staff,
+        my_assigned_trek=my_assigned_trek,
+        total_booking=total_booking
+    )
+@app.route('/staff/open_closed/<int:trek_id>', methods=['POST'])
+def open_or_closed(trek_id):
+    if session.get('role') != 'staff':
+        return redirect(url_for('index'))
+
+    trek = Trek.query.get_or_404(trek_id)
+    trek.open_trek= not trek.open_trek
+
+    db.session.commit()
+
+    return redirect(url_for('staff_dashboard'))
+
+@app.route('/staff/checked_in/<int:booking_id>',methods=['POST'])
+def check_in(booking_id):
+    if session.get('role')!='staff':
+        return redirect(url_for('index'))
+    booking=Booking.query.get_or_404(booking_id)
+    if booking.status=="Completed":
+        flash("trek is alredy Completed", "warning")
+        return redirect(url_for('staff_dashboard'))
+    booking.status="Checked_in"
+    db.session.commit()
+    return redirect(url_for('staff_dashboard'))
+
+@app.route("/staff/update_slots/<int:trek_id>", methods=["POST"])
+def update_slots(trek_id):
+    if session.get("role") != "staff":
+        return redirect(url_for("index"))
+
+    user = logged_in()
+    staff = Staff.query.filter_by(user_id=user.id).first()
+
+    trek = Trek.query.get_or_404(trek_id)
+    slots = request.form.get("number_slots", type=int)
+    trek.number_slots = slots
+    trek.open_trek = slots > 0
+
+    db.session.commit()
+
+    flash("Slots updated successfully.", "success")
+    return redirect(url_for("staff_dashboard"))
 
 
+@app.route("/staff/update_status/<int:trek_id>", methods=["POST"])
+def update_trek_status(trek_id):
+    if session.get("role") != "staff":
+        return redirect(url_for("index"))
 
+    trek = Trek.query.get_or_404(trek_id)
+    status = request.form.get("status")
+
+    trek.status = status
+
+    if status == "Completed":
+        for booking in trek.bookings:
+            booking.status = "Completed"
+
+    db.session.commit()
+
+    return redirect(url_for("staff_dashboard"))
+
+@app.route("/staff/update_staff_profile",methods=["Get","POST"])
+def update_staff_profile():
+    user = User.query.get_or_404(session["user_id"])
+
+    if request.method == "POST":
+
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        ph_number = request.form.get("number", "").strip()
+        password = request.form.get("password", "").strip()
+
+        if name:
+            user.name = name
+
+        if email:
+            exist = User.query.filter(
+                User.email == email,
+                User.id != user.id
+            ).first()
+
+            if exist:
+                flash("Email already exists")
+                return redirect(url_for("update_staff_profile"))
+            user.email = email
+
+        if ph_number:
+            exist_1=User.query.filter(
+                User.ph_number==ph_number,
+                User.id != user.id).first()
+            if exist_1:
+                flash("Phone number alreday exists")
+                return redirect(url_for("update_staff_profile"))
+
+            user.ph_number = ph_number
+        db.session.commit()
+
+        return redirect(url_for("staff_dashboard"))
+
+    return render_template("update_profile.html", user=user)
 
 
 
@@ -321,10 +432,26 @@ def update_profile():
             user.name = name
 
         if email:
+            exist = User.query.filter(
+                User.email == email,
+                User.id != user.id
+            ).first()
+
+            if exist:
+                flash("Email already exists")
+                return redirect(url_for("update_profile"))
             user.email = email
 
         if ph_number:
+            exist_1=User.query.filter(
+                User.ph_number==ph_number,
+                User.id != user.id).first()
+            if exist_1:
+                flash("Phone number alreday exists")
+                return redirect(url_for("update_profile"))
+
             user.ph_number = ph_number
+
 
         if password:
             user.set_password(password)
@@ -403,6 +530,13 @@ def register():
 
         if exist:
             return render_template("register.html",error="Email already exists")
+        phone_exist = User.query.filter_by(ph_number=ph_number).first()
+
+        if phone_exist:
+            return render_template(
+                "register.html",
+                error="Phone number already exists"
+            )
 
         if role == 'staff':
 

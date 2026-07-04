@@ -33,8 +33,10 @@ background-image: url("{{ url_for('static', filename='back.png') }}");
         <div id="canvas">
 
             <div id="content">
-            <h1 style="font-family: Georgia, serif;justify-content: center;">  Welcome to TrekTrails</h1>
-            <div id="form-body">
+                <br>
+                <br>
+            <h1 style="font-family: Georgia, serif;justify-content:center; ">Welcome to TrekTrails</h1>
+            <div id="form-body" style="background-color: beige; height: 300px;">
                 <h2>Login Form</h2>
                 <form action="/login" method="post">
                     {% if error %}
