@@ -141,19 +141,16 @@ def book_trek(trek_id):
     user = User.query.get_or_404(session["user_id"])
     trek = Trek.query.get_or_404(trek_id)
 
-    # Check if trek is open
     if not trek.open_trek:
         flash("This trek is no longer open for booking.", "danger")
         return redirect(url_for("customer_dashboard"))
 
-    # Check available slots
     if trek.number_slots <= 0:
         trek.open_trek = False
         db.session.commit()
         flash("No slots available.", "danger")
         return redirect(url_for("customer_dashboard"))
 
-    # Prevent duplicate booking
     existing_booking = Booking.query.filter_by(
         user_id=user.id,
         trek_id=trek.id
@@ -169,11 +166,7 @@ def book_trek(trek_id):
     )
 
     db.session.add(booking)
-
-    # Reduce slots
     trek.number_slots -= 1
-
-    # Close trek if no slots remain
     if trek.number_slots == 0:
         trek.open_trek = False
 
@@ -230,6 +223,7 @@ def admin_dashboard():
                            all_booking=all_booking,
                            all_trek=all_trek,
                            available_staff=available_staff,
+                           search_query=search_query,
                            search_results_customer=search_results_customer,
                            search_results_staff=search_results_staff,
                            assigned_staff_ids=assigned_staff_ids
@@ -303,7 +297,11 @@ def staff_dashboard():
     user = logged_in()
     staff = Staff.query.filter_by(user_id=user.id).first()
     my_assigned_trek = Trek.query.filter_by(staff_id=staff.id).first()
-    total_booking = Booking.query.filter_by(trek_id=my_assigned_trek.id).count()
+
+    if my_assigned_trek:
+        total_booking = Booking.query.filter_by(trek_id=my_assigned_trek.id).count()
+    else:
+        total_booking = 0
     return render_template(
         "staff_dash.html",
         staff=staff,

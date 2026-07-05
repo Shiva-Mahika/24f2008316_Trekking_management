@@ -45,14 +45,11 @@
 </div>
 </div>
     <br>
-    <h2>my assigned trek: {{my_assigned_trek.name}}</h2>
+    <h2>my assigned trek: {{my_assigned_trek.trek_name}}</h2>
 
-<div class="card mb-4">
-    <div class="card-header">
-        <h3>{{ trek.trek_name }}</h3>
-    </div>
-
-    <div class="card-body">
+<div class="card" style="width: 50rem;">
+  <div class="card-body">
+    <h4 class="card-title"><u><b>{{trek.trek_name}}</h4></u></b></h5>
         <p><strong>Location:</strong> {{ trek.trek_location }}</p>
         <p><strong>Difficulty:</strong> {{ trek.difficulty }}</p>
         <p><strong>Duration:</strong> {{ trek.duration }} days</p>
@@ -111,6 +108,8 @@
                         
 
 </form>
+</div>
+</div>
 <br>
 <br>
         <h3>Bookings</h3>
