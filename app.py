@@ -35,9 +35,9 @@ class Trek(db.Model):
     number_slots=db.Column(db.Integer,nullable=False)
     open_trek=db.Column(db.Boolean,default=True)
     status=db.Column(db.String(10),default="Upcoming")
-    staff_id = db.Column(db.Integer,db.ForeignKey('staff.id'))
+    staff_id = db.Column(db.Integer,db.ForeignKey('staff.id'),nullable=True)
     bookings = db.relationship('Booking', backref='trek', lazy=True,cascade="all,delete-orphan")
-    
+    start_date=db.Column(db.Date,nullable=False)
 class Booking(db.Model):
     id=db.Column(db.Integer,primary_key=True)
     user_id=db.Column(db.Integer,db.ForeignKey('user.id'),nullable=False)
@@ -275,13 +275,29 @@ def create_trek():
         difficulty=request.form.get("difficulty")
         duration=request.form.get("duration")
         number_slots=request.form.get("number_slots")
-        trek = Trek(trek_name=name,trek_location=location,difficulty=difficulty,duration=int(duration),number_slots=int(number_slots))
+
+
+        start_date = datetime.strptime(request.form["start_date"],"%Y-%m-%d").date()
+        trek = Trek(trek_name=name,trek_location=location,difficulty=difficulty,duration=int(duration),number_slots=int(number_slots),start_date=start_date)
 
         db.session.add(trek)
         db.session.commit()
         return redirect(url_for('admin_dashboard'))
 
     return render_template('create_trek.html')
+
+@app.route('/delete_trek/<int:trek_id>',methods=['GET','POST'])
+def delete_trek(trek_id):
+    if session.get('role') != 'admin':
+        return redirect(url_for('index'))
+
+    trek = Trek.query.get_or_404(trek_id)
+
+    db.session.delete(trek)
+    db.session.commit()
+
+    return redirect(url_for('admin_dashboard'))
+
 
 
 @app.route('/logout')
@@ -297,6 +313,8 @@ def staff_dashboard():
     user = logged_in()
     staff = Staff.query.filter_by(user_id=user.id).first()
     my_assigned_trek = Trek.query.filter_by(staff_id=staff.id).first()
+    if my_assigned_trek is None:
+        return "<h1>No trek assigned yet.<h1>"
 
     if my_assigned_trek:
         total_booking = Booking.query.filter_by(trek_id=my_assigned_trek.id).count()
@@ -471,15 +489,31 @@ def update_trek(trek_id):
     trek = Trek.query.get_or_404(trek_id)
 
     if request.method == 'POST':
-        trek.trek_name = request.form.get('trek_name').strip()
-        trek.trek_location = request.form.get('trek_location').strip()
-        trek.difficulty = request.form.get('difficulty')
-        trek.duration = int(request.form.get('duration'))
-        trek.number_slots = int(request.form.get('number_slots'))
+        trek_name = request.form.get('trek_name', '').strip()
+        trek_location = request.form.get('trek_location', '').strip()
+        difficulty = request.form.get('difficulty')
+        duration = request.form.get('duration', '').strip()
+        number_slots = request.form.get('number_slots', '').strip()
+
+        if trek_name:
+            trek.trek_name = trek_name
+
+        if trek_location:
+            trek.trek_location = trek_location
+
+        if difficulty and difficulty != "Trek Difficulty":
+            trek.difficulty = difficulty
+
+        if duration:
+            trek.duration = int(duration)
+
+        if number_slots:
+            trek.number_slots = int(number_slots)
 
         db.session.commit()
-
         return redirect(url_for('admin_dashboard'))
+
+    return render_template('update_trek.html', trek=trek)
 
     return render_template('update_trek.html', trek=trek)
 

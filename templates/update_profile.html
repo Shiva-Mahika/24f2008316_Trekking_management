@@ -42,11 +42,11 @@ background-image: url("{{ url_for('static', filename='image.jpg') }}");
 
         <div class="mb-3">
         <label class="form-label">Name</label>
-        <input type="name" name="name" class="form-control" placeholder="Enter your name here" >
+        <input type="name" name="name" class="form-control" placeholder="Enter your name here" pattern="[A-Za-z ]+"" >
         </div>
         <div class="mb-3">
         <label class="form-label">Phone Number</label>
-        <input type="number" name="number" class="form-control" placeholder="Enter your phone number here" name="ph_number">
+        <input type="number" name="number" class="form-control" placeholder="Enter your phone number here" name="ph_number" pattern="[0-9]{10}">
         </div>
 
         <div class="mb-3">
@@ -59,7 +59,7 @@ background-image: url("{{ url_for('static', filename='image.jpg') }}");
         </div>
          
         <br>
-        <button type="submit" class="btn btn-success">submit</button>
+        <button type="submit" class="btn btn-success">Submit</button>
         
     </form>
     </div>
