@@ -7,6 +7,8 @@ from werkzeug.security import check_password_hash,generate_password_hash
 import os
 import io
 from flask import Response
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
