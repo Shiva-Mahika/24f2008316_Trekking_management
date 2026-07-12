@@ -2,3 +2,9 @@ Adventure organizations require efficient systems to manage trekking activities 
 
 
 Run app.py file with the correct folder strucure to run the application 
+
+libraries needed to install 
+Flask
+Flask-SQLAlchemy
+SQLAlchemy
+Werkzeug
