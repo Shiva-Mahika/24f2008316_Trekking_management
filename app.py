@@ -1,10 +1,14 @@
 
 from flask import Flask,render_template,request,redirect,session,url_for,send_from_directory,flash
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import or_
+from sqlalchemy import or_,func 
 from datetime import datetime,timedelta
 from werkzeug.security import check_password_hash,generate_password_hash
 import os
+import io
+from flask import Response
+import matplotlib.pyplot as plt
+
 
 
 app=Flask(__name__)
@@ -210,6 +214,9 @@ def admin_dashboard():
         search_results_staff=User.query.filter(
             User.role=='staff',
             or_(User.name.like(like), User.email.like(like))).all()
+    
+    trek_stats = (db.session.query( Trek.trek_name,
+        func.count(Booking.id).label("count")).outerjoin(Booking).group_by(Trek.id).all())
         
 
     return render_template('admin_dash.html'
@@ -230,6 +237,36 @@ def admin_dashboard():
                            )
 
 
+@app.route("/booking_chart")
+def booking_chart():
+
+    stats = (
+        db.session.query(
+            Trek.trek_name,
+            func.count(Booking.id).label("count")
+        )
+        .outerjoin(Booking)
+        .group_by(Trek.id)
+        .all()
+    )
+
+    trek_names = [x.trek_name for x in stats]
+    bookings = [x.count for x in stats]
+
+    plt.figure(figsize=(8,4))
+    plt.bar(trek_names, bookings)
+    plt.xlabel("Treks")
+    plt.ylabel("Bookings")
+    plt.title("Bookings per Trek")
+
+    img = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(img, format="png")
+    plt.close()
+
+    img.seek(0)
+
+    return Response(img.getvalue(), mimetype="image/png")
 
 @app.route('/assign_staff/<int:trek_id>', methods=['POST'])
 def assign_staff(trek_id):
