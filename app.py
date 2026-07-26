@@ -50,17 +50,14 @@ class Booking(db.Model):
     trek_id=db.Column(db.Integer,db.ForeignKey('trek.id'),nullable=False)
     payment_status=db.Column(db.Boolean,nullable=False,default=False)
     booked_at=db.Column(db.DateTime,default=datetime.now)
-    
     status = db.Column(db.String(20), default="Booked", nullable=False)
 class Staff(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-
     user_id = db.Column(db.Integer,db.ForeignKey('user.id'),unique=True,nullable=False)
-
     approval = db.Column(db.String(10),nullable=False,default='pending')
     user = db.relationship("User", backref="staff_profile")
     treks = db.relationship('Trek',backref='staff',lazy=True)
-
+#controller
 @app.route("/")
 def index():
     return render_template('index.html')
@@ -551,8 +548,6 @@ def update_trek(trek_id):
 
         db.session.commit()
         return redirect(url_for('admin_dashboard'))
-
-    return render_template('update_trek.html', trek=trek)
 
     return render_template('update_trek.html', trek=trek)
 
